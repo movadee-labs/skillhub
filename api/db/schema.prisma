@@ -8,11 +8,37 @@ generator client {
   binaryTargets = "native"
 }
 
-// Define your own datamodels here and run `yarn redwood prisma migrate dev`
-// to create migrations for them and apply to your dev DB.
-// TODO: Please remove the following example:
-model UserExample {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+// Questions:
+// - not utilizing jsonb. eg, achievements can be jsonb of experience ??
+// - should we link achievements to user as well as experience ?
+// - many-to-many echievements and users ?
+
+model User {
+  id      Int      @id @default(autoincrement())
+  name    String?
+  email   String   @unique
+  // hashedPassword      String
+  // salt                String
+  // resetToken          String?
+  // resetTokenExpiresAt DateTime?
+  // roles               String @default("moderator")
+  resumes Resume[]
+}
+
+model Resume {
+  id           Int           @id @default(autoincrement())
+  title        String
+  createdAt    DateTime      @default(now())
+  // when creating resume assign user automatically ?
+  user         User          @relation(fields: [userId], references: [id])
+  userId       Int
+  achievements Achievement[]
+}
+
+model Achievement {
+  id        Int      @id @default(autoincrement())
+  body      String
+  createdAt DateTime @default(now())
+  resume    Resume?  @relation(fields: [resumeId], references: [id])
+  resumeId  Int?
 }
