@@ -1,13 +1,13 @@
+import { db } from 'src/lib/db';
+
 import type {
   QueryResolvers,
   MutationResolvers,
   AchievementRelationResolvers,
 } from 'types/graphql'
 
-import { db } from 'src/lib/db'
-
-export const achievements: QueryResolvers['achievements'] = () => {
-  return db.achievement.findMany()
+export const achievements: QueryResolvers['achievements'] = ({ resumeId }) => {
+  return db.achievement.findMany({ where: { resumeId } })
 }
 
 export const achievement: QueryResolvers['achievement'] = ({ id }) => {
