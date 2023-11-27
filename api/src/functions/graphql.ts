@@ -1,3 +1,4 @@
+import { authDecoder } from '@redwoodjs/auth-netlify-api'
 import { createAuthDecoder } from '@redwoodjs/auth-dbauth-api'
 import { createGraphQLHandler } from '@redwoodjs/graphql-server'
 
