@@ -1,4 +1,3 @@
-import { Link, routes } from '@redwoodjs/router';
 import Achievements from 'src/components/Achievement/Achievements';
 
 import type { FindAchievements } from 'types/graphql'
@@ -20,12 +19,13 @@ export const Loading = () => <div>Loading...</div>
 
 export const Empty = () => {
   return (
-    <div className="rw-text-center">
-      {'No achievements yet. '}
-      <Link to={routes.newAchievement()} className="rw-link">
-        {'Create one?'}
-      </Link>
-    </div>
+    <></>
+    // <div className="rw-text-center">
+    //   {'No achievements yet. '}
+    //   <Link to={routes.newAchievement()} className="rw-link">
+    //     {'Create one?'}
+    //   </Link>
+    // </div>
   )
 }
 

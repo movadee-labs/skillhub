@@ -10,7 +10,9 @@ const EditResumePage = ({ id }: ResumePageProps) => {
   return (
     <>
       <EditResumeCell id={id} />
+      <br />
       <AchievementsCell resumeId={id} />
+      <br />
       <NewAchievement resumeId={id} />
     </>
   )

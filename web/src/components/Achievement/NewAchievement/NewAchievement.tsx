@@ -31,14 +31,15 @@ const NewAchievement = ({ resumeId }) => {
   }
 
   return (
-    <div className="rw-segment">
-      <header className="rw-segment-header">
-        <h2 className="rw-heading rw-heading-secondary">New Achievement</h2>
-      </header>
-      <div className="rw-segment-main">
-        <AchievementForm onSave={onSave} loading={loading} error={error} />
-      </div>
-    </div>
+    // <div className="rw-segment">
+    //   <header className="rw-segment-header">
+    //     <h2 className="rw-heading rw-heading-secondary">New Achievement</h2>
+    //   </header>
+    //   <div className="rw-segment-main">
+    //     <AchievementForm onSave={onSave} loading={loading} error={error} />
+    //   </div>
+    // </div>
+    <AchievementForm onSave={onSave} loading={loading} error={error} />
   )
 }
 

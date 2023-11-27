@@ -1,8 +1,7 @@
-import { Link, routes } from '@redwoodjs/router';
 import { useMutation } from '@redwoodjs/web';
 import { toast } from '@redwoodjs/web/toast';
 import { QUERY } from 'src/components/Achievement/AchievementsCell';
-import { timeTag, truncate } from 'src/lib/formatters';
+import { truncate } from 'src/lib/formatters';
 
 import type {
   DeleteAchievementMutationVariables,
@@ -41,7 +40,7 @@ const AchievementsList = ({ achievements }: FindAchievements) => {
   return (
     <div className="rw-segment rw-table-wrapper-responsive">
       <table className="rw-table">
-        <thead>
+        {/* <thead>
           <tr>
             <th>Id</th>
             <th>Body</th>
@@ -49,17 +48,17 @@ const AchievementsList = ({ achievements }: FindAchievements) => {
             <th>Resume id</th>
             <th>&nbsp;</th>
           </tr>
-        </thead>
+        </thead> */}
         <tbody>
           {achievements.map((achievement) => (
             <tr key={achievement.id}>
-              <td>{truncate(achievement.id)}</td>
+              {/* <td>{truncate(achievement.id)}</td> */}
               <td>{truncate(achievement.body)}</td>
-              <td>{timeTag(achievement.createdAt)}</td>
-              <td>{truncate(achievement.resumeId)}</td>
+              {/* <td>{timeTag(achievement.createdAt)}</td>
+              <td>{truncate(achievement.resumeId)}</td> */}
               <td>
                 <nav className="rw-table-actions">
-                  <Link
+                  {/* <Link
                     to={routes.achievement({ id: achievement.id })}
                     title={'Show achievement ' + achievement.id + ' detail'}
                     className="rw-button rw-button-small"
@@ -72,7 +71,7 @@ const AchievementsList = ({ achievements }: FindAchievements) => {
                     className="rw-button rw-button-small rw-button-blue"
                   >
                     Edit
-                  </Link>
+                  </Link> */}
                   <button
                     type="button"
                     title={'Delete achievement ' + achievement.id}

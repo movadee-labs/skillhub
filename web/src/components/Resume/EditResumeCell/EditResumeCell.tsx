@@ -1,7 +1,6 @@
 import { navigate, routes } from '@redwoodjs/router';
 import { useMutation } from '@redwoodjs/web';
 import { toast } from '@redwoodjs/web/toast';
-import ResumeForm from 'src/components/Resume/ResumeForm';
 
 import type { EditResumeById, UpdateResumeInput } from 'types/graphql'
 
@@ -55,20 +54,25 @@ export const Success = ({ resume }: CellSuccessProps<EditResumeById>) => {
   }
 
   return (
+    // <div className="rw-segment">
+    //   <header className="rw-segment-header">
+    //     <h2 className="rw-heading rw-heading-secondary">
+    //       Edit Resume {resume?.id}
+    //     </h2>
+    //   </header>
+    //   <div className="rw-segment-main">
+    //     <ResumeForm
+    //       resume={resume}
+    //       onSave={onSave}
+    //       error={error}
+    //       loading={loading}
+    //     />
+    //   </div>
+    // </div>
     <div className="rw-segment">
       <header className="rw-segment-header">
-        <h2 className="rw-heading rw-heading-secondary">
-          Edit Resume {resume?.id}
-        </h2>
+        <h2 className="rw-heading rw-heading-secondary">Resume {resume?.id}</h2>
       </header>
-      <div className="rw-segment-main">
-        <ResumeForm
-          resume={resume}
-          onSave={onSave}
-          error={error}
-          loading={loading}
-        />
-      </div>
     </div>
   )
 }

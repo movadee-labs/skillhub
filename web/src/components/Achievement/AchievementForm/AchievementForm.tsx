@@ -1,4 +1,4 @@
-import { FieldError, Form, FormError, Label, Submit, TextField } from '@redwoodjs/forms';
+import { FieldError, Form, FormError, Submit, TextField } from '@redwoodjs/forms';
 
 import type { EditAchievementById, UpdateAchievementInput } from 'types/graphql'
 
@@ -28,13 +28,13 @@ const AchievementForm = (props: AchievementFormProps) => {
           listClassName="rw-form-error-list"
         />
 
-        <Label
+        {/* <Label
           name="body"
           className="rw-label"
           errorClassName="rw-label rw-label-error"
         >
           Body
-        </Label>
+        </Label> */}
 
         <TextField
           name="body"
@@ -64,11 +64,11 @@ const AchievementForm = (props: AchievementFormProps) => {
 
         <FieldError name="resumeId" className="rw-field-error" /> */}
 
-        <div className="rw-button-group">
-          <Submit disabled={props.loading} className="rw-button rw-button-blue">
-            Save
-          </Submit>
-        </div>
+        {/* <div className="rw-button-group"> */}
+        <Submit disabled={props.loading} className="rw-button rw-button-blue">
+          Save
+        </Submit>
+        {/* </div> */}
       </Form>
     </div>
   )
