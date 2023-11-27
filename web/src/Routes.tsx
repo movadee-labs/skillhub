@@ -9,10 +9,12 @@
 import { Route, Router, Set } from '@redwoodjs/router';
 import ScaffoldLayout from 'src/layouts/ScaffoldLayout';
 
+import { useAuth } from './auth'
+
 
 const Routes = () => {
   return (
-    <Router>
+    <Router useAuth={useAuth}>
       <Set wrap={ScaffoldLayout} title="Achievements" titleTo="achievements" buttonLabel="New Achievement" buttonTo="newAchievement">
         <Route path="/achievements/new" page={AchievementNewAchievementPage} name="newAchievement" />
         <Route path="/achievements/{id:Int}/edit" page={AchievementEditAchievementPage} name="editAchievement" />
