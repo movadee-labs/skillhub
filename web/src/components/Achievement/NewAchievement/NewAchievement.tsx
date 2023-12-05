@@ -1,6 +1,7 @@
 import { useMutation } from '@redwoodjs/web';
 import { toast } from '@redwoodjs/web/toast';
 import AchievementForm from 'src/components/Achievement/AchievementForm';
+import { QUERY as FindAchievements } from 'src/components/Achievement/AchievementsCell';
 
 import type { CreateAchievementInput } from 'types/graphql'
 
@@ -23,6 +24,7 @@ const NewAchievement = ({ resumeId }) => {
       onError: (error) => {
         toast.error(error.message)
       },
+      refetchQueries: [{ query: FindAchievements, variables: { resumeId } }],
     }
   )
 

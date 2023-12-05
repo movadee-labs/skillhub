@@ -1,0 +1,3 @@
+div:focus, input:focus{
+  outline: 0;
+}
