@@ -1,67 +1,69 @@
 import { css, cx } from '@emotion/css';
 import React, { PropsWithChildren, ReactNode, Ref, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { createEditor, Descendant, Editor, Range } from 'slate';
+import { createEditor, Descendant, Editor, Element as SlateElement, Node, Range, Transforms } from 'slate';
 import { withHistory } from 'slate-history';
-import { Editable, Slate, useFocused, useSlate, withReact } from 'slate-react';
+import { Editable, Slate, useFocused, useSlate, useSlateStatic, withReact } from 'slate-react';
+
+export type EditableVoidElement = {
+  type: 'editable-void'
+  children: EmptyText[]
+}
 
 const initialValue: Descendant[] = [
   {
-    type: 'paragraph',
-    children: [
-      {
-        text: 'With Slate you can build complex block types that have their own embedded content and behaviors, like rendering checkboxes inside check list items!',
-      },
-    ],
+    type: 'title',
+    children: [{ text: 'Software Engineer III' }],
   },
+  // {
+  //   type: 'paragraph',
+  //   children: [
+  //     {
+  //       text: 'With Slate you can build complex block types that have their own embedded content and behaviors, like rendering checkboxes inside check list items!',
+  //     },
+  //   ],
+  // },
   {
-    type: 'list-item',
+    type: 'bulleted-list',
     children: [{ text: 'Slide to the left.' }],
   },
   {
-    type: 'list-item',
+    type: 'bulleted-list',
     children: [{ text: 'Slide to the right.' }],
   },
   {
-    type: 'list-item',
+    type: 'bulleted-list',
     children: [{ text: 'Criss-cross.' }],
   },
   {
-    type: 'list-item',
+    type: 'bulleted-list',
     children: [{ text: 'Criss-cross!' }],
   },
   {
-    type: 'list-item',
+    type: 'bulleted-list',
     children: [{ text: 'Cha cha real smooth…' }],
   },
   {
-    type: 'list-item',
+    type: 'bulleted-list',
     children: [{ text: "Let's go to work!" }],
-  },
-  {
-    type: 'paragraph',
-    children: [{ text: 'Try it out for yourself!' }],
   },
 ]
 
 const CheckListsExample = () => {
-  const [value, setValue] = useState(initialValue)
   const renderElement = useCallback((props) => <Element {...props} />, [])
-  const editor = useMemo(() => withHistory(withReact(createEditor())), [])
-
-  const handleChange = (content) => {
-    setValue(content)
-
-    console.log(value)
-  }
+  const editor = useMemo(
+    () => withLayout(withHistory(withReact(createEditor()))),
+    []
+  )
 
   return (
-    <Slate editor={editor} initialValue={value} onChange={handleChange}>
+    <Slate editor={editor} initialValue={initialValue}>
       <HoveringToolbar />
       <Editable
         renderElement={renderElement}
         renderLeaf={(props) => <Leaf {...props} />}
         placeholder="Enter some text..."
+        onChange={(value) => console.log(value)}
         spellCheck
         onDOMBeforeInput={(event: InputEvent) => {
           switch (event.inputType) {
@@ -98,19 +100,26 @@ const Leaf = ({ attributes, children, leaf }) => {
   }
 
   const askAI = async (children) => {
-    return fetch('https://api.openai.com/v1/engines/davinci/completions', {
+    const data = {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'user',
+          content: `Generate a Powerful Resume Line: i am a Software Developer, who did the following: ${children}. do not wrap text in quotes`,
+        },
+      ],
+    }
+
+    return fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.REDWOOD_ENV_OPENAI_API_KEY}`,
       },
-      body: JSON.stringify({
-        prompt: children,
-        max_tokens: 150,
-      }),
+      body: JSON.stringify(data),
     })
       .then((response) => response.json())
-      .then((json) => json.choices[0]?.text)
+      .then((result) => result.choices[0].message.content)
   }
 
   useEffect(() => {
@@ -141,9 +150,10 @@ const Leaf = ({ attributes, children, leaf }) => {
 
 const Element = (props) => {
   const { attributes, children, element } = props
-
   switch (element.type) {
-    case 'list-item':
+    case 'title':
+      return <h3 {...attributes}>{children}</h3>
+    case 'bulleted-list':
       return <ListItemElement {...props} />
     default:
       return <p {...attributes}>{children}</p>
@@ -248,6 +258,77 @@ export const Menu = React.forwardRef(
   )
 )
 
+const withLayout = (editor) => {
+  const { normalizeNode } = editor
+
+  editor.normalizeNode = ([node, path]) => {
+    if (path.length === 0) {
+      if (editor.children.length <= 1 && Editor.string(editor, [0, 0]) === '') {
+        const title: TitleElement = {
+          type: 'title',
+          children: [{ text: 'Untitled' }],
+        }
+        Transforms.insertNodes(editor, title, {
+          at: path.concat(0),
+          select: true,
+        })
+      }
+
+      if (editor.children.length < 2) {
+        const listItem: BulletedListElement = {
+          type: 'bulleted-list',
+          children: [{ text: '' }],
+        }
+        Transforms.insertNodes(editor, listItem, { at: path.concat(1) })
+      }
+
+      for (const [child, childPath] of Node.children(editor, path)) {
+        let type: string
+        const slateIndex = childPath[0]
+        const enforceType = (type) => {
+          if (SlateElement.isElement(child) && child.type !== type) {
+            const newProperties: Partial<SlateElement> = { type }
+            Transforms.setNodes<SlateElement>(editor, newProperties, {
+              at: childPath,
+            })
+          }
+        }
+
+        switch (slateIndex) {
+          case 0:
+            type = 'title'
+            enforceType(type)
+            break
+          case 1:
+            type = 'bulleted-list'
+            enforceType(type)
+            break
+          default:
+            break
+        }
+      }
+    }
+
+    return normalizeNode([node, path])
+  }
+
+  return editor
+}
+
+export type ParagraphElement = {
+  type: 'paragraph'
+  align?: string
+  children: Descendant[]
+}
+
+export type TitleElement = { type: 'title'; children: Descendant[] }
+
+export type BulletedListElement = {
+  type: 'bulleted-list'
+  align?: string
+  children: Descendant[]
+}
+
 const FormatButton = ({ format, icon }) => {
   const editor = useSlate()
   return (
@@ -337,38 +418,89 @@ const toggleMark = (editor, format) => {
   }
 }
 
-export default CheckListsExample
+// export default CheckListsExample
 
-// import 'react-quill/dist/quill.snow.css';
+// editable voids
+const EditableVoidsExample = () => {
+  const editor = useMemo(
+    () => withEditableVoids(withHistory(withReact(createEditor()))),
+    []
+  )
 
-// import { useState } from 'react';
-// import ReactQuill from 'react-quill';
+  return (
+    <Slate editor={editor} initialValue={initialValue2}>
+      <InsertEditableVoidButton />
 
-// const AchievementForm = () => {
-//   const [value, setValue] = useState([])
+      <Editable
+        renderElement={(props) => <Element2 {...props} />}
+        placeholder="Enter some text..."
+      />
+    </Slate>
+  )
+}
 
-//   const handleChange = (content) => {
-//     setValue(content)
+const withEditableVoids = (editor) => {
+  const { isVoid } = editor
 
-//     // Creating a simple JSON object with the HTML content
-//     const contentJson = {
-//       htmlContent: content,
-//     }
+  editor.isVoid = (element) => {
+    return element.type === 'editable-void' ? true : isVoid(element)
+  }
 
-//     console.log('Content in JSON format:', contentJson)
-//   }
+  return editor
+}
 
-//   return (
-//     <ReactQuill
-//       theme="snow"
-//       value={value}
-//       onChange={setValue}
-//       onChange={handleChange}
-//     />
-//   )
-// }
+const insertEditableVoid = (editor) => {
+  const text = { text: '' }
+  const voidNode: EditableVoidElement = {
+    type: 'editable-void',
+    children: [text],
+  }
+  Transforms.insertNodes(editor, voidNode, { at: [0] })
+}
 
-// export default AchievementForm
+const Element2 = (props) => {
+  const { attributes, children, element } = props
+
+  switch (element.type) {
+    case 'editable-void':
+      return <EditableVoid {...props} />
+    default:
+      return <p {...attributes}>{children}</p>
+  }
+}
+
+const EditableVoid = ({ attributes, children, element }) => {
+  return (
+    // Need contentEditable=false or Firefox has issues with certain input types.
+    <div {...attributes} contentEditable={false}>
+      <CheckListsExample />
+      {children}
+    </div>
+  )
+}
+
+const InsertEditableVoidButton = () => {
+  const editor = useSlateStatic()
+  return (
+    <Button
+      onMouseDown={(event) => {
+        event.preventDefault()
+        insertEditableVoid(editor)
+      }}
+    >
+      <Icon>add</Icon>
+    </Button>
+  )
+}
+
+const initialValue2: Descendant[] = [
+  {
+    type: 'editable-void',
+    children: [{ text: '' }],
+  },
+]
+
+export default EditableVoidsExample
 
 // import { css } from '@emotion/css';
 // import { useForm } from '@redwoodjs/forms';
@@ -390,51 +522,6 @@ export default CheckListsExample
 
 // import type { RWGqlError } from '@redwoodjs/forms'
 
-// const initialValue: Descendant[] = [
-//   {
-//     type: 'paragraph',
-//     children: [
-//       {
-//         text: 'With Slate you can build complex block types that have their own embedded content and behaviors, like rendering checkboxes inside check list items!',
-//       },
-//     ],
-//   },
-//   {
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Slide to the left.' }],
-//   },
-//   {
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Slide to the right.' }],
-//   },
-//   {
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: 'Criss-cross.' }],
-//   },
-//   {
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Criss-cross!' }],
-//   },
-//   {
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: 'Cha cha real smooth…' }],
-//   },
-//   {
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: "Let's go to work!" }],
-//   },
-//   {
-//     type: 'paragraph',
-//     children: [{ text: 'Try it out for yourself!' }],
-//   },
-// ]
-
 // type FormAchievement = NonNullable<EditAchievementById['achievement']>
 
 // interface AchievementFormProps {
@@ -448,42 +535,6 @@ export default CheckListsExample
 //   const editor = useMemo(
 //     () => withChecklists(withHistory(withReact(createEditor()))),
 //     []
-//   )
-
-//   // Drag and drop logic
-//   const [draggedElement, setDraggedElement] = useState(null)
-
-//   const onDragStart = useCallback((event, element) => {
-//     setDraggedElement(element)
-//     event.dataTransfer.effectAllowed = 'move'
-//   }, [])
-
-//   const onDragOver = useCallback((event) => {
-//     event.preventDefault()
-//     event.dataTransfer.dropEffect = 'move'
-//   }, [])
-
-//   const onDrop = useCallback(
-//     (event, targetElement) => {
-//       event.preventDefault()
-
-//       if (draggedElement && targetElement && draggedElement !== targetElement) {
-//         const draggedPath = ReactEditor.findPath(editor, draggedElement)
-//         const targetPath = ReactEditor.findPath(editor, targetElement)
-
-//         // Determine the index to move the dragged element to
-//         // This logic assumes you want to place the dragged element before the target element
-//         const targetIndex = targetPath[targetPath.length - 1]
-
-//         Transforms.moveNodes(editor, {
-//           at: draggedPath,
-//           to: targetPath.slice(0, -1).concat(targetIndex),
-//         })
-//       }
-
-//       setDraggedElement(null)
-//     },
-//     [draggedElement]
 //   )
 
 //   // Modify the renderElement to include drag handlers
@@ -507,33 +558,6 @@ export default CheckListsExample
 //   const onSubmit = (data: FormAchievement) => {
 //     props.onSave(data, props?.achievement?.id)
 //   }
-
-//   const askAI = () => {
-//     fetch('https://api.openai.com/v1/engines/davinci/completions', {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         Authorization: `Bearer ${process.env.REDWOOD_ENV_OPENAI_API_KEY}`,
-//       },
-//       body: JSON.stringify({
-//         prompt: getValues('body'),
-//         max_tokens: 150,
-//       }),
-//     })
-//       .then((response) => response.json())
-//       .then((json) => console.log(json.choices[0]?.text))
-//       .then((json) => setValue('body', 'new value'))
-//   }
-//   return (
-//     <Slate editor={editor} initialValue={initialValue}>
-//       <Editable
-//         renderElement={renderElement}
-//         placeholder="Get to work…"
-//         spellCheck
-//         autoFocus
-//       />
-//     </Slate>
-//   )
 
 //   // return (
 //   //   <div className="rw-form-wrapper">
@@ -575,400 +599,3 @@ export default CheckListsExample
 //   //   </div>
 //   // )
 // }
-
-// const withChecklists = (editor) => {
-//   const { deleteBackward } = editor
-
-//   editor.deleteBackward = (...args) => {
-//     const { selection } = editor
-
-//     if (selection && Range.isCollapsed(selection)) {
-//       const [match] = Editor.nodes(editor, {
-//         match: (n) =>
-//           !Editor.isEditor(n) &&
-//           SlateElement.isElement(n) &&
-//           n.type === 'check-list-item',
-//       })
-
-//       if (match) {
-//         const [, path] = match
-//         const start = Editor.start(editor, path)
-
-//         if (Point.equals(selection.anchor, start)) {
-//           const newProperties: Partial<SlateElement> = {
-//             type: 'paragraph',
-//           }
-//           Transforms.setNodes(editor, newProperties, {
-//             match: (n) =>
-//               !Editor.isEditor(n) &&
-//               SlateElement.isElement(n) &&
-//               n.type === 'check-list-item',
-//           })
-//           return
-//         }
-//       }
-//     }
-
-//     deleteBackward(...args)
-//   }
-
-//   return editor
-// }
-
-// const Element = (props) => {
-//   const { attributes, children, element } = props
-
-//   switch (element.type) {
-//     case 'check-list-item':
-//       return <CheckListItemElement {...props} />
-//     default:
-//       return <p {...attributes}>{children}</p>
-//   }
-// }
-
-// const CheckListItemElement = ({
-//   attributes,
-//   children,
-//   element,
-//   onDragStart,
-//   onDragOver,
-//   onDrop,
-// }) => {
-//   const editor = useSlateStatic()
-//   const readOnly = useReadOnly()
-//   const { checked } = element
-//   return (
-//     <div
-//       {...attributes}
-//       draggable
-//       onDragStart={(e) => onDragStart(e, element)}
-//       onDragOver={onDragOver}
-//       onDrop={(e) => onDrop(e, element)}
-//       className={css`
-//         display: flex;
-//         flex-direction: row;
-//         align-items: center;
-
-//         & + & {
-//           margin-top: 0;
-//         }
-//       `}
-//     >
-//       <span
-//         contentEditable={false}
-//         className={css`
-//           margin-right: 0.75em;
-//         `}
-//       >
-//         <input
-//           type="checkbox"
-//           checked={checked}
-//           onChange={(event) => {
-//             const path = ReactEditor.findPath(editor, element)
-//             const newProperties: Partial<SlateElement> = {
-//               checked: event.target.checked,
-//             }
-//             Transforms.setNodes(editor, newProperties, { at: path })
-//           }}
-//         />
-//       </span>
-//       <span
-//         contentEditable={!readOnly}
-//         suppressContentEditableWarning
-//         className={css`
-//           flex: 1;
-//           opacity: ${checked ? 0.666 : 1};
-//           text-decoration: ${!checked ? 'none' : 'line-through'};
-
-//           &:focus {
-//             outline: none;
-//           }
-//         `}
-//       >
-//         {children}
-//       </span>
-//     </div>
-//   )
-// }
-
-// export default AchievementForm
-
-// const initialValue = [
-//   {
-//     children: [
-//       {
-//         id: uuidv4(),
-//         type: 'paragraph',
-//         children: [
-//           {
-//             text: 'With Slate you can build complex block types that have their own embedded content and behaviors, like rendering checkboxes inside check list items!',
-//           },
-//         ],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'check-list-item',
-//         checked: true,
-//         children: [{ text: 'Slide to the left.' }],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'check-list-item',
-//         checked: true,
-//         children: [{ text: 'Slide to the right.' }],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'check-list-item',
-//         checked: false,
-//         children: [{ text: 'Criss-cross.' }],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'check-list-item',
-//         checked: true,
-//         children: [{ text: 'Criss-cross!' }],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'check-list-item',
-//         checked: false,
-//         children: [{ text: 'Cha cha real smooth…' }],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'check-list-item',
-//         checked: false,
-//         children: [{ text: "Let's go to work!" }],
-//       },
-//       {
-//         id: uuidv4(),
-//         type: 'paragraph',
-//         children: [{ text: 'Try it out for yourself!' }],
-//       },
-//     ],
-//   },
-// ]
-
-// Assuming each item in initialValue has a unique 'id' property
-// const initialValue: Descendant[] = [
-//   {
-//     id: uuidv4(),
-//     type: 'paragraph',
-//     children: [
-//       {
-//         text: 'With Slate you can build complex block types that have their own embedded content and behaviors, like rendering checkboxes inside check list items!',
-//       },
-//     ],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Slide to the left.' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Slide to the right.' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: 'Criss-cross.' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Criss-cross!' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: 'Cha cha real smooth…' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: "Let's go to work!" }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'paragraph',
-//     children: [{ text: 'Try it out for yourself!' }],
-//   },
-// ]
-
-// const AchievementForm = () => {
-//   const [value, setValue] = useState(initialValue) // initialize state with initialValue
-//   const editor = useMemo(() => withHistory(withReact(createEditor())), [])
-
-//   // Add a console log to inspect the state just before rendering
-//   console.log('Value State:', value)
-
-//   // const onDragEnd = useCallback(
-//   //   (result) => {
-//   //     const { source, destination } = result
-
-//   //     // Dropped outside the list or no movement
-//   //     if (!destination || source.index === destination.index) {
-//   //       return
-//   //     }
-
-//   //     const newValue = Array.from(value)
-//   //     const [movedItem] = newValue.splice(source.index, 1)
-//   //     newValue.splice(destination.index, 0, movedItem)
-
-//   //     setValue(newValue)
-
-//   //     // Update the Slate editor's value
-//   //     Transforms.moveNodes(editor, {
-//   //       at: [source.index],
-//   //       to: [destination.index],
-//   //     })
-//   //   },
-//   //   [value, editor]
-//   // )
-
-//   // Render function for Slate elements
-//   // const renderElement = useCallback((props) => {
-//   //   return <Element {...props} />
-//   // }, [])
-
-//   return (
-//     <Slate
-//       editor={editor}
-//       value={value}
-//       onChange={(value) => {
-//         setValue(value)
-//         console.log('val', value)
-//       }}
-//     >
-//       <Editable placeholder="Enter some plain text..." />
-//     </Slate>
-//   )
-
-//   // return (
-//   //   <Slate editor={editor} value={value}>
-//   //     <DragDropContext onDragEnd={onDragEnd}>
-//   //       <Droppable droppableId="droppable-list">
-//   //         {(provided) => (
-//   //           <div {...provided.droppableProps} ref={provided.innerRef}>
-//   //             {value.map((item, index) => (
-//   //               <Draggable key={item.id} draggableId={item.id} index={index}>
-//   //                 {(provided) => (
-//   //                   <div
-//   //                     ref={provided.innerRef}
-//   //                     {...provided.draggableProps}
-//   //                     {...provided.dragHandleProps}
-//   //                     className={css`
-//   //                       /* your styles here */
-//   //                     `}
-//   //                   >
-//   //                     <Editable renderElement={renderElement} readOnly />
-//   //                   </div>
-//   //                 )}
-//   //               </Draggable>
-//   //             ))}
-//   //             {provided.placeholder}
-//   //           </div>
-//   //         )}
-//   //       </Droppable>
-//   //     </DragDropContext>
-//   //   </Slate>
-//   // )
-// }
-
-// const Element = ({ attributes, children, element }) => {
-//   switch (element.type) {
-//     case 'check-list-item':
-//       return <CheckListItemElement {...{ attributes, children, element }} />
-//     default:
-//       return <p {...attributes}>{children}</p>
-//   }
-// }
-
-// const CheckListItemElement = ({ attributes, children, element }) => {
-//   return (
-//     <div
-//       {...attributes}
-//       className={css`
-//         /* your styles here */
-//       `}
-//     >
-//       {/* your check list item structure here */}
-//       {children}
-//     </div>
-//   )
-// }
-
-// export default AchievementForm
-
-// const initialValue: Descendant[] = [
-//   {
-//     id: uuidv4(),
-//     type: 'paragraph',
-//     children: [
-//       {
-//         text: 'With Slate you can build complex block types that have their own embedded content and behaviors, like rendering checkboxes inside check list items!',
-//       },
-//     ],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Slide to the left.' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Slide to the right.' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: 'Criss-cross.' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: true,
-//     children: [{ text: 'Criss-cross!' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: 'Cha cha real smooth…' }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'check-list-item',
-//     checked: false,
-//     children: [{ text: "Let's go to work!" }],
-//   },
-//   {
-//     id: uuidv4(),
-//     type: 'paragraph',
-//     children: [{ text: 'Try it out for yourself!' }],
-//   },
-// ]
-
-// const AchievementForm = () => {
-//   const editor = useMemo(() => withHistory(withReact(createEditor())), [])
-//   return (
-//     <Slate editor={editor} initialValue={initialValue}>
-//       <Editable placeholder="Enter some plain text..." />
-//     </Slate>
-//   )
-// }
-
-// export default AchievementForm
